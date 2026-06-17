@@ -1,5 +1,5 @@
-# RSS feeds for Panda Intelligence Center
-# Add or modify sources freely — failed feeds are skipped automatically.
+# RSS feeds for Panda News Daily
+# Failed feeds are skipped automatically with a warning.
 
 ai_news:
   - name: "Hacker News AI"
@@ -7,18 +7,22 @@ ai_news:
   - name: "TechCrunch AI"
     url: "https://techcrunch.com/category/artificial-intelligence/feed/"
   - name: "The Verge AI"
-    url: "https://www.theverge.com/ai-artificial-intelligence/rss/index.xml"
+    url: "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml"
   - name: "ArXiv AI"
     url: "https://rss.arxiv.org/rss/cs.AI"
   - name: "MIT Tech Review AI"
     url: "https://www.technologyreview.com/topic/artificial-intelligence/feed/"
 
 world_news:
-  - name: "BBC News"
+  - name: "BBC World"
     url: "https://feeds.bbci.co.uk/news/world/rss.xml"
-  - name: "Reuters World"
-    url: "https://www.reutersagency.com/feed/?taxonomy=best-sectors&post_type=best&best-sectors=world"
-  - name: "AP News"
+  - name: "NYT World"
     url: "https://rss.nytimes.com/services/xml/rss/nyt/World.xml"
   - name: "Al Jazeera"
     url: "https://www.aljazeera.com/xml/rss/all.xml"
+  - name: "The Guardian World"
+    url: "https://www.theguardian.com/world/rss"
+  - name: "AP News"
+    url: "https://www.dailyclimate.org/rss/ap_world.rss"
+  - name: "SCMP News"
+    url: "https://www.scmp.com/rss/91/feed"

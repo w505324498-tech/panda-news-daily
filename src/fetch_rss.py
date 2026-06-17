@@ -29,7 +29,7 @@ def fetch_feed(name: str, url: str) -> list[dict]:
             return []
 
         entries = []
-        for entry in feed.entries[:5]:  # Take up to 5 per feed
+        for entry in feed.entries[:10]:  # Take up to 10 per feed
             entries.append({
                 "title": entry.get("title", "").strip(),
                 "url": entry.get("link", ""),
@@ -77,8 +77,8 @@ def fetch_category(category: str) -> list[dict]:
     # Deduplicate by title similarity, then by exact URL
     unique = dedupe_by_title(all_entries, threshold=0.7)
 
-    # Take top 3
-    return unique[:3]
+    # Take top 8 per category
+    return unique[:8]
 
 
 if __name__ == "__main__":
