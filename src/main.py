@@ -10,7 +10,7 @@ from datetime import date, datetime, timezone
 from src.fetch_github import fetch_github_projects
 from src.fetch_rss import fetch_category
 from src.summarize import is_available as ai_available
-from src.summarize import summarize_github, summarize_news, suggest_xhs_topic
+from src.summarize import analyze_github_and_pick_best, summarize_news
 from src.mailer import send_daily_email
 
 logging.basicConfig(
@@ -49,14 +49,24 @@ def main():
         logger.exception("World news fetch crashed")
         errors.append(f"全球新闻获取失败: {e}")
 
-    # ── 3. AI Summarization ────────────────────────────────────────
+    # ── 3. AI Summarization + Best Topic ───────────────────────────
+    best_topic: dict = {
+        "recommendation_score": 0,
+        "recommendation_reason": "",
+        "recommended_platform": "",
+        "suggested_titles": [],
+        "repo": "",
+        "repo_url": "",
+    }
     if ai_available():
-        logger.info("══ Step 3/5: AI summarization (API available)…")
+        logger.info("══ Step 3/5: AI analysis + best topic picker (API available)…")
         try:
-            github_projects = summarize_github(github_projects)
+            github_projects, best_topic = analyze_github_and_pick_best(
+                github_projects, ai_news
+            )
         except Exception as e:
-            logger.exception("GitHub summarization crashed")
-            errors.append(f"GitHub AI 摘要失败: {e}")
+            logger.exception("GitHub analysis crashed")
+            errors.append(f"GitHub AI 分析失败: {e}")
         try:
             ai_news = summarize_news(ai_news, "ai_news")
         except Exception as e:
@@ -70,18 +80,12 @@ def main():
     else:
         logger.info("══ Step 3/5: AI summarization SKIPPED (OPENAI_API_KEY not set)…")
         errors.append("⚠️ OPENAI_API_KEY 未配置，摘要未经 AI 改写")
+        best_topic["recommendation_reason"] = (
+            "AI 摘要功能暂不可用，请配置 OPENAI_API_KEY 后获取智能推荐"
+        )
 
-    # ── 4. XHS Suggestion ─────────────────────────────────────────
-    logger.info("══ Step 4/5: Generating XHS topic suggestion…")
-    xhs_suggestion: dict = {"title": "今日推荐", "repo": "", "angle": "", "why": ""}
-    try:
-        if ai_available():
-            xhs_suggestion = suggest_xhs_topic(github_projects, ai_news)
-        else:
-            xhs_suggestion["angle"] = "AI功能暂不可用"
-    except Exception as e:
-        logger.exception("XHS suggestion crashed")
-        errors.append(f"小红书选题生成失败: {e}")
+    # ── 4. Best Topic (done above, nothing extra needed) ───────────
+    logger.info("══ Step 4/5: Best topic selected")
 
     # ── 5. Send Email ──────────────────────────────────────────────
     logger.info("══ Step 5/5: Sending email…")
@@ -91,7 +95,7 @@ def main():
             github_projects=github_projects,
             ai_news=ai_news,
             world_news=world_news,
-            xhs_suggestion=xhs_suggestion,
+            best_topic=best_topic,
             errors=errors if errors else None,
         )
         if ok:
