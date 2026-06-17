@@ -1,5 +1,7 @@
 """Send HTML email via SMTP."""
 
+from __future__ import annotations
+
 import logging
 import os
 import smtplib
