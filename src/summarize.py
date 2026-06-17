@@ -14,7 +14,7 @@ MODEL = os.getenv("OPENAI_MODEL", "").strip() or "deepseek-chat"
 
 REQUEST_TIMEOUT = 120
 
-AUDIENCE_TAGS = ["普通用户", "AI爱好者", "开发者", "办公自动化"]
+AUDIENCE_TAGS = ["AI爱好者", "上班族", "内容创作者", "开发者"]
 
 
 def _client():
@@ -64,75 +64,87 @@ def analyze_github_and_pick_best(
     if not projects or not is_available():
         # Fallback: no AI available
         for p in projects:
-            p["why_notable"] = (p.get("description") or "值得关注的开源项目")[:60]
+            p["one_liner"] = _cn_fallback(p)
+            p["what_is_it"] = _cn_fallback(p)
+            p["why_notable"] = ["值得关注的开源AI项目"]
             p["content_scores"] = {"xhs": 0, "douyin": 0, "gzh": 0}
             p["audience"] = []
+            p["xhs_core_hook"] = ""
+            p["xhs_titles"] = []
         best_topic["recommendation_reason"] = "AI 摘要功能暂不可用，请配置 OPENAI_API_KEY 后获取智能推荐"
         return projects, best_topic
 
-    # Build prompt
+    # Build prompt — no English, all Chinese output
     projects_text = "\n\n".join(
         f"[{i+1}] {p['name']}\n"
         f"Stars: {p['stars']}\nLanguage: {p['language']}\n"
-        f"Description: {p['description']}\nKeyword matched: {p['keyword']}"
+        f"Description: {p['description']}\nKeyword: {p['keyword']}"
         for i, p in enumerate(projects)
     )
     news_text = "\n".join(f"- {e['title']}" for e in ai_news[:3])
 
     prompt = (
-        "你是一位资深内容创作顾问兼AI技术分析师。你的任务是：\n"
-        "1. 分析每个GitHub项目的技术价值和内容创作潜力\n"
-        "2. 从中选出1个最适合做成自媒体内容的项目\n\n"
+        "你是一位小红书/抖音AI内容创作顾问。你的读者是普通中国人，不是程序员。\n\n"
 
-        "## 评分标准\n"
-        "- 小红书：项目是否有好看的UI/GUI/可视化效果？能否做出吸引人的图文笔记？\n"
-        "- 抖音：项目操作是否可录屏演示？是否有视觉冲击力或「wow moment」？\n"
-        "- 公众号：项目是否有深度技术分析价值？能否写成技术解读长文？\n\n"
+        "## 核心任务\n"
+        "分析以下GitHub AI项目，把每个项目翻译成「小白都能看懂的介绍」，并给出可直接用于内容创作的素材。\n\n"
 
-        "## 受众判断（可多选）\n"
-        "普通用户：有GUI、一键部署、不需要写代码\n"
-        "AI爱好者：免费、好玩、跟AI热门话题相关\n"
-        "开发者：需要写代码、CLI工具、框架/库\n"
-        "办公自动化：能提效、自动处理文件/数据/日程\n\n"
+        "## 输出语言要求\n"
+        "- 全部使用中文，禁止出现英文单词（项目名除外）\n"
+        "- 用生活化的比喻解释技术概念\n"
+        "- 避免术语：API、CLI、deploy、framework、pipeline 等，如果必须出现要翻译成中文\n"
+        "- 想象你在给一个不懂编程的朋友介绍这个工具\n\n"
 
-        "## 最佳选题优先考虑\n"
-        "- 视觉冲击力强（有截图/演示效果）\n"
-        "- 普通用户能理解和使用\n"
-        "- 免费或低成本\n"
-        "- 跟当前AI热点相关\n\n"
+        "## 评分标准（内容创作价值）\n"
+        "- 小红书（1-5）：有好看的界面/可视化效果吗？能做出吸引人的图文笔记吗？\n"
+        "- 抖音（1-5）：操作可录屏演示吗？有视觉冲击力吗？\n"
+        "- 公众号（1-5）：有深度解读价值吗？能写成技术科普长文吗？\n\n"
 
-        f"## 今日GitHub热门AI项目\n{projects_text}\n\n"
-        f"## 今日AI行业新闻（辅助判断趋势关联度）\n{news_text}\n\n"
+        "## 受众标签（可多选）\n"
+        "AI爱好者：对AI感兴趣、喜欢尝试新工具\n"
+        "上班族：需要提效的职场人\n"
+        "内容创作者：想做AI相关内容的自媒体人\n"
+        "开发者：会写代码的技术人员\n\n"
 
-        "请输出以下JSON（仅输出JSON，不要其他文字）：\n"
+        f"## 今日GitHub AI项目\n{projects_text}\n\n"
+        f"## 今日AI新闻趋势（参考）\n{news_text}\n\n"
+
+        "## 输出JSON格式（仅输出JSON，不要其他文字）\n"
         "{\n"
         '  "projects": [\n'
         '    {\n'
         '      "index": 1,\n'
-        '      "why_notable": "中文，30字以内，说明该项目的独特价值或趋势意义",\n'
+        '      "one_liner": "一句话中文介绍，15字以内，让小白秒懂这项目能干嘛",\n'
+        '      "what_is_it": "用2-3句通俗中文解释这个项目是什么、解决什么问题。不要技术术语，用生活化比喻。50字以内。",\n'
+        '      "why_notable": ["原因1", "原因2", "原因3"],\n'
         '      "content_scores": {"xhs": 4, "douyin": 3, "gzh": 5},\n'
-        '      "audience": ["开发者", "AI爱好者"]\n'
+        '      "audience": ["AI爱好者", "上班族"],\n'
+        '      "xhs_core_hook": "如果发小红书，1句话核心卖点（20字以内，要有吸引力）",\n'
+        '      "xhs_titles": ["小红书标题1（含emoji，20字以内）", "标题2", "标题3"]\n'
         '    }\n'
         '  ],\n'
         '  "best_topic": {\n'
-        '    "project_index": 3,\n'
+        '    "project_index": 2,\n'
         '    "recommendation_score": 5,\n'
-        '    "recommendation_reason": "推荐理由，50字以内",\n'
+        '    "recommendation_reason": "一句话说明为什么这个项目最适合做内容，50字以内",\n'
         '    "recommended_platform": "小红书",\n'
-        '    "suggested_titles": [\n'
-        '      "GitHub爆火项目，3天涨3000 Star",\n'
-        '      "这个AI工具让我少干2小时活",\n'
-        '      "又发现一个免费AI神器"\n'
-        '    ]\n'
+        '    "suggested_titles": ["标题1", "标题2", "标题3"]\n'
         '  }\n'
         '}\n\n'
-        "注意：suggested_titles 必须是3个吸引眼球的中文标题（含emoji，各20字以内），"
-        "模仿小红书/抖音爆款标题风格。recommended_platform 为 小红书/抖音/小红书+抖音 之一。"
-        "content_scores 分值范围1-5，没有内容创作价值为1。"
+
+        "## 关键要求\n"
+        "- 所有文字必须中文，不要照搬英文描述\n"
+        "- one_liner 和 what_is_it 要让完全不懂技术的人也能看懂\n"
+        "- why_notable 从内容创作角度写：这个项目有什么值得「发」的？\n"
+        "- xhs_core_hook 要像小红书爆款标题一样有吸引力\n"
+        "- xhs_titles 3个不同角度：实用型、猎奇型、情感共鸣型\n"
+        "- 最佳选题 prioritise 有截图/演示效果、免费、普通人能用起来的项目\n"
+        "- content_scores 从内容创作难度和吸引力角度打分，不要从技术角度\n"
+        "- max_tokens 请控制在合理范围内，JSON 必须完整闭合"
     )
 
     try:
-        raw = _chat(prompt, max_tokens=3000)
+        raw = _chat(prompt, max_tokens=4000)
         logger.info("GitHub analysis + best topic generated")
         data = json.loads(raw)
 
@@ -140,11 +152,14 @@ def analyze_github_and_pick_best(
         for item in data.get("projects", []):
             idx = item["index"] - 1
             if 0 <= idx < len(projects):
-                projects[idx]["why_notable"] = item.get("why_notable", "")
+                projects[idx]["one_liner"] = item.get("one_liner", _cn_fallback(projects[idx]))
+                projects[idx]["what_is_it"] = item.get("what_is_it", _cn_fallback(projects[idx]))
+                projects[idx]["why_notable"] = item.get("why_notable", ["值得关注的开源AI项目"])[:3]
                 projects[idx]["content_scores"] = item.get("content_scores", {"xhs": 0, "douyin": 0, "gzh": 0})
                 audience = item.get("audience", [])
-                # Validate audience tags
                 projects[idx]["audience"] = [t for t in audience if t in AUDIENCE_TAGS]
+                projects[idx]["xhs_core_hook"] = item.get("xhs_core_hook", "")
+                projects[idx]["xhs_titles"] = item.get("xhs_titles", [])[:3]
 
         # Extract best_topic
         bt = data.get("best_topic", {})
@@ -155,7 +170,6 @@ def analyze_github_and_pick_best(
             "suggested_titles": bt.get("suggested_titles", [])[:3],
             "project_index": int(bt.get("project_index", 1)) - 1,
         }
-        # Link to actual project name
         pi = best_topic["project_index"]
         if 0 <= pi < len(projects):
             best_topic["repo"] = projects[pi]["name"]
@@ -166,21 +180,34 @@ def analyze_github_and_pick_best(
 
     except json.JSONDecodeError as e:
         logger.warning("GitHub analysis JSON parse failed: %s\nRaw: %.200s", e, raw)
-        for p in projects:
-            p["why_notable"] = (p.get("description") or "值得关注的开源项目")[:60]
-            p["content_scores"] = {"xhs": 0, "douyin": 0, "gzh": 0}
-            p["audience"] = []
-        best_topic["recommendation_reason"] = f"AI 返回格式异常，请检查模型配置"
+        _apply_fallback(projects, best_topic, f"AI 返回格式异常，请检查模型配置")
     except Exception as e:
         logger.warning("GitHub analysis API call failed [%s]: %s", type(e).__name__, e)
         logger.debug("API config: base_url=%s model=%s key_len=%d", BASE_URL, MODEL, len(API_KEY))
-        for p in projects:
-            p["why_notable"] = (p.get("description") or "值得关注的开源项目")[:60]
-            p["content_scores"] = {"xhs": 0, "douyin": 0, "gzh": 0}
-            p["audience"] = []
-        best_topic["recommendation_reason"] = f"AI 分析暂时不可用: {e}"
+        _apply_fallback(projects, best_topic, f"AI 分析暂时不可用: {e}")
 
     return projects, best_topic
+
+
+def _cn_fallback(p: dict) -> str:
+    """Generate a minimal Chinese fallback description."""
+    desc = (p.get("description") or "").strip()
+    if desc:
+        return desc[:80]
+    return "AI开源项目"
+
+
+def _apply_fallback(projects: list[dict], best_topic: dict, reason: str) -> None:
+    """Apply fallback values when AI analysis fails."""
+    for p in projects:
+        p["one_liner"] = _cn_fallback(p)
+        p["what_is_it"] = _cn_fallback(p)
+        p["why_notable"] = ["值得关注的开源AI项目"]
+        p["content_scores"] = {"xhs": 0, "douyin": 0, "gzh": 0}
+        p["audience"] = []
+        p["xhs_core_hook"] = ""
+        p["xhs_titles"] = []
+    best_topic["recommendation_reason"] = reason
 
 
 # ── News Summarization (unchanged) ─────────────────────────────────────────

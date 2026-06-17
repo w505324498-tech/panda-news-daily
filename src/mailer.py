@@ -19,10 +19,10 @@ MAIL_TO = os.getenv("MAIL_TO", "")
 MAIL_FROM = os.getenv("MAIL_FROM", SMTP_USER)
 
 AUDIENCE_COLORS = {
-    "普通用户": "#0969da",   # blue
-    "AI爱好者": "#8250df",   # purple
+    "AI爱好者":   "#8250df",   # purple
+    "上班族":     "#0969da",   # blue
+    "内容创作者": "#e6005c",   # pink/red
     "开发者":     "#1a7f37",   # green
-    "办公自动化": "#cf222e",   # red
 }
 
 
@@ -111,12 +111,22 @@ def _build_html(
         url = p.get("url", "")
         stars_count = p.get("stars", 0)
         lang = p.get("language", "N/A")
-        desc = (p.get("description") or "")[:200]
-        why = p.get("why_notable", desc[:60])
+        one_liner = p.get("one_liner", "")
+        what_is_it = p.get("what_is_it", "")
+        why_notable = p.get("why_notable", [])
         scores = p.get("content_scores", {"xhs": 0, "douyin": 0, "gzh": 0})
         audience = p.get("audience", [])
+        xhs_hook = p.get("xhs_core_hook", "")
+        xhs_titles = p.get("xhs_titles", [])
 
-        # Build scores row
+        # Why notable bullets
+        why_html = ""
+        if why_notable:
+            why_html = '<ul style="margin:4px 0; padding-left:18px; font-size:13px; color:#444">' + "".join(
+                f"<li>{_esc(w)}</li>" for w in why_notable
+            ) + "</ul>"
+
+        # Scores
         scores_html = (
             f'<span style="margin-right:14px">📕 小红书 {_stars(scores.get("xhs", 0))}</span>'
             f'<span style="margin-right:14px">🎵 抖音 {_stars(scores.get("douyin", 0))}</span>'
@@ -124,18 +134,43 @@ def _build_html(
         )
         audience_html = _audience_tags(audience)
 
+        # XHS angle
+        xhs_html = ""
+        if xhs_hook or xhs_titles:
+            xhs_html = (
+                '<div style="margin-top:10px; padding:10px 12px; background:#fff0f5; border-radius:8px; border-left:3px solid #e6005c">'
+                f'<div style="font-size:13px; font-weight:bold; color:#e6005c; margin-bottom:6px">📕 如果发小红书</div>'
+                f'<div style="font-size:13px; color:#333; margin-bottom:4px">💬 核心卖点：{_esc(xhs_hook)}</div>'
+            )
+            if xhs_titles:
+                xhs_html += (
+                    '<div style="font-size:12px; color:#555; margin-top:4px">' +
+                    "".join(f'<div>▸ {_esc(t)}</div>' for t in xhs_titles) +
+                    '</div>'
+                )
+            xhs_html += '</div>'
+
         return f"""
         <tr>
           <td style="padding:16px; border-bottom:1px solid #eee">
-            <div style="font-size:16px; font-weight:bold; margin-bottom:4px">
+            <!-- Header -->
+            <div style="font-size:17px; font-weight:bold; margin-bottom:2px">
               <a href="{url}" style="color:#0969da; text-decoration:none">{_esc(name)}</a>
               <span style="font-size:13px; color:#666; margin-left:8px">⭐ {stars_count}</span>
-              <span style="font-size:12px; color:#888; margin-left:8px">{_esc(lang)}</span>
+              <span style="font-size:12px; color:#888; margin-left:6px">{_esc(lang)}</span>
             </div>
-            <div style="font-size:14px; color:#444; margin-bottom:4px">{_esc(desc)}</div>
-            <div style="font-size:13px; color:#d73a49; margin-bottom:6px">💡 {_esc(why)}</div>
-            <div style="font-size:13px; margin-bottom:4px">{scores_html}</div>
-            <div style="margin-top:4px">{audience_html}</div>
+            <!-- One-liner -->
+            <div style="font-size:15px; color:#24292f; margin-bottom:6px; font-weight:500">{_esc(one_liner)}</div>
+            <!-- What is it -->
+            <div style="font-size:14px; color:#444; margin-bottom:8px; line-height:1.6">{_esc(what_is_it)}</div>
+            <!-- Why notable -->
+            <div style="font-size:13px; font-weight:bold; color:#555; margin-bottom:2px">为什么值得关注：</div>
+            {why_html}
+            <!-- Audience + Scores -->
+            <div style="margin-top:8px; font-size:13px">{audience_html}</div>
+            <div style="margin-top:6px; font-size:13px">{scores_html}</div>
+            <!-- XHS angle -->
+            {xhs_html}
           </td>
         </tr>"""
 
@@ -278,21 +313,41 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     ok = send_daily_email(
         date_str=str(date.today()),
-        github_projects=[],
+        github_projects=[{
+            "name": "n8n-io/n8n",
+            "url": "https://github.com/n8n-io/n8n",
+            "stars": 58000,
+            "language": "TypeScript",
+            "one_liner": "把重复工作交给AI自动完成",
+            "what_is_it": "一个免费的开源自动化工具，可以用拖拽的方式把各种软件串联起来。比如：收到邮件自动存到表格、每天定时抓取数据、AI自动回复消息。不需要写代码就能搭建自动化流程。",
+            "why_notable": [
+                "可视化拖拽操作，不懂编程也能上手",
+                "内置AI节点，可以把大模型接入任何工作流",
+                "免费开源，数据留在自己电脑上"
+            ],
+            "content_scores": {"xhs": 5, "douyin": 5, "gzh": 4},
+            "audience": ["AI爱好者", "上班族", "内容创作者"],
+            "xhs_core_hook": "不会写代码的人，也能搭建AI自动化工作流",
+            "xhs_titles": [
+                "🤯 我终于把每天重复工作交给AI了",
+                "💼 这个免费工具帮我每天省下2小时",
+                "🆓 零代码搭建AI自动化，打工人必备"
+            ],
+        }],
         ai_news=[],
         world_news=[],
         best_topic={
-            "recommendation_score": 4,
-            "recommendation_reason": "这个项目有完整的Web UI，3天涨了2000 star，适合做成图文教程",
+            "recommendation_score": 5,
+            "recommendation_reason": "拖拽式操作、内置AI、免费开源，完美适合拍演示视频",
             "recommended_platform": "小红书+抖音",
             "suggested_titles": [
-                "🤯 GitHub爆火项目，3天涨3000 Star",
-                "💼 这个AI工具让我少干2小时活",
-                "🆓 又发现一个免费AI神器，打工人必备",
+                "🤯 GitHub爆火项目，5.8万Star",
+                "💼 这个AI工具让我每天少干2小时",
+                "🆓 又发现一个免费AI神器"
             ],
-            "repo": "test/awesome-ai-tool",
-            "repo_url": "https://github.com/test/awesome-ai-tool",
+            "repo": "n8n-io/n8n",
+            "repo_url": "https://github.com/n8n-io/n8n",
         },
-        errors=["测试错误：GitHub API 返回 403"],
+        errors=[],
     )
     print("Send result:", ok)
