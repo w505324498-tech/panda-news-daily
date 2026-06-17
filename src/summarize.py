@@ -132,15 +132,22 @@ def analyze_github_and_pick_best(
         '  }\n'
         '}\n\n'
 
+        "## 最佳选题筛选优先级\n"
+        "高优先级（优先选这些类型的项目）：\n"
+        "Claude Code / Codex / Gemini / MCP / AI Agent / AI办公工具 / AI自动化工具 / "
+        "效率工具 / 内容创作工具 / 可以录屏演示的工具\n\n"
+        "低优先级（降低权重）：\n"
+        "纯SDK / Framework / Library / 纯开发工具 / 普通人完全无法理解的项目\n\n"
+
         "## 关键要求\n"
         "- 所有文字必须中文，不要照搬英文描述\n"
         "- one_liner 和 what_is_it 要让完全不懂技术的人也能看懂\n"
         "- why_notable 从内容创作角度写：这个项目有什么值得「发」的？\n"
         "- xhs_core_hook 要像小红书爆款标题一样有吸引力\n"
         "- xhs_titles 3个不同角度：实用型、猎奇型、情感共鸣型\n"
-        "- 最佳选题 prioritise 有截图/演示效果、免费、普通人能用起来的项目\n"
+        "- 最佳选题严格按上面的优先级权重筛选\n"
         "- content_scores 从内容创作难度和吸引力角度打分，不要从技术角度\n"
-        "- max_tokens 请控制在合理范围内，JSON 必须完整闭合"
+        "- JSON 必须完整闭合"
     )
 
     try:
@@ -208,6 +215,117 @@ def _apply_fallback(projects: list[dict], best_topic: dict, reason: str) -> None
         p["xhs_core_hook"] = ""
         p["xhs_titles"] = []
     best_topic["recommendation_reason"] = reason
+
+
+# ── XHS Draft Generator ──────────────────────────────────────────────────────
+
+
+def generate_xhs_draft(best_project: dict, ai_news: list[dict]) -> dict:
+    """
+    Generate a full, ready-to-publish Xiaohongshu draft for a single best project.
+
+    Returns a dict with: project_name, one_liner, why_notable, xhs_titles (5),
+    xhs_body (300-500 chars), cover_texts (3), screenshots, publish_checklist.
+    """
+    empty: dict = {
+        "project_name": "",
+        "one_liner": "",
+        "why_notable": [],
+        "xhs_titles": [],
+        "xhs_body": "",
+        "cover_texts": [],
+        "screenshots": [],
+        "publish_checklist": "",
+    }
+
+    if not best_project or not is_available():
+        return empty
+
+    proj_info = (
+        f"项目名：{best_project.get('name', '')}\n"
+        f"Stars：{best_project.get('stars', 0)}\n"
+        f"描述：{best_project.get('description', '')}\n"
+        f"语言：{best_project.get('language', '')}\n"
+        f"AI分析的一句话介绍：{best_project.get('one_liner', '')}\n"
+        f"AI分析的通俗解释：{best_project.get('what_is_it', '')}"
+    )
+    news_hint = "\n".join(f"- {e['title']}" for e in ai_news[:3])
+
+    prompt = (
+        "你是一个小红书AI内容博主，擅长用普通人视角分享AI工具。\n\n"
+
+        "## 任务\n"
+        f"以下GitHub项目被选为今日最佳选题，请为这个项目生成一篇可直接发布的小红书完整草稿。\n\n"
+
+        f"## 项目信息\n{proj_info}\n\n"
+        f"## 今日AI新闻（辅助判断时效角度）\n{news_hint}\n\n"
+
+        "## 输出要求\n"
+        "全部中文。JSON格式（仅输出JSON，不要其他文字）：\n"
+        "{\n"
+        '  "xhs_titles": ["标题1", "标题2", "标题3", "标题4", "标题5"],\n'
+        '  "xhs_body": "正文内容（300-500字）",\n'
+        '  "cover_texts": ["封面文案1", "封面文案2", "封面文案3"],\n'
+        '  "screenshots": ["截图建议1", "截图建议2", "截图建议3"],\n'
+        '  "publish_checklist": "发布前检查清单和测试步骤"\n'
+        "}\n\n"
+
+        "## 标题要求（xhs_titles，5个）\n"
+        "- 普通人能看懂，一眼就知道这工具能干嘛\n"
+        "- 不要营销号风格，不要夸张（❌「震惊！」「全网首发」「后悔没早知道」）\n"
+        "- 像真实分享（✅「最近发现一个工具」「这个还挺好用的」）\n"
+        "- 每标题20字以内，含emoji\n\n"
+
+        "## 正文要求（xhs_body，300-500字）\n"
+        "- 第一人称，像普通上班族在分享日常发现\n"
+        "- 不像广告，不像AI生成，语气自然口语化\n"
+        "- 不要堆砌技术术语\n"
+        "- 可以用的表达：「最近发现一个工具」「准备试试看」「如果好用再继续分享」\n"
+        "- 结构：发现 → 是什么 → 能干嘛 → 我的感受 → 推荐理由\n\n"
+
+        "## 封面文案要求（cover_texts，3个）\n"
+        "- 简短有冲击力，适合做封面大字\n"
+        "- 例如：AI工具实测 / 本周AI发现 / 打工人AI神器\n"
+        "- 每条10字以内\n\n"
+
+        "## 截图建议（screenshots，3个）\n"
+        "- 告诉我应该截什么图来配合文案\n"
+        "- 例如：GitHub主页截图 / 工具运行界面截图 / 使用前后对比截图\n"
+        "- 具体说明截哪个页面、哪个功能\n\n"
+
+        "## 发布前检查（publish_checklist）\n"
+        "- 直接告诉我：是否需要录屏 / 是否需要实际测试 / 是否可以直接发\n"
+        "- 如果建议测试，给出最简单的测试步骤（2-3步）\n"
+        "- 用 checklist 格式，每行一个 ✅ 开头的条目\n\n"
+
+        "## 关键要求\n"
+        "- 正文必须像真人写的，不像AI生成\n"
+        "- 不要喊口号，不要「姐妹们冲啊」「家人谁懂啊」这种\n"
+        "- 真诚分享的语气，像跟朋友聊天\n"
+        "- 字号适中，每段不超过3行\n"
+        "- JSON 必须完整闭合"
+    )
+
+    try:
+        raw = _chat(prompt, max_tokens=2500)
+        logger.info("XHS draft generated for %s", best_project.get("name", "unknown"))
+        data = json.loads(raw)
+        return {
+            "project_name": best_project.get("name", ""),
+            "one_liner": best_project.get("one_liner", ""),
+            "why_notable": best_project.get("why_notable", []),
+            "xhs_titles": data.get("xhs_titles", [])[:5],
+            "xhs_body": data.get("xhs_body", ""),
+            "cover_texts": data.get("cover_texts", [])[:3],
+            "screenshots": data.get("screenshots", [])[:3],
+            "publish_checklist": data.get("publish_checklist", ""),
+        }
+    except json.JSONDecodeError as e:
+        logger.warning("XHS draft JSON parse failed: %s", e)
+        return empty
+    except Exception as e:
+        logger.warning("XHS draft API call failed [%s]: %s", type(e).__name__, e)
+        return empty
 
 
 # ── News Summarization (unchanged) ─────────────────────────────────────────

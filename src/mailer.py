@@ -33,6 +33,7 @@ def send_daily_email(
     ai_news: list[dict],
     world_news: list[dict],
     best_topic: dict,
+    xhs_draft: dict | None = None,
     errors: list[str] | None = None,
 ) -> bool:
     """Compose and send the daily digest email."""
@@ -49,6 +50,7 @@ def send_daily_email(
         ai_news=ai_news,
         world_news=world_news,
         best_topic=best_topic,
+        xhs_draft=xhs_draft,
         errors=errors,
     )
 
@@ -81,6 +83,7 @@ def _build_html(
     ai_news: list[dict],
     world_news: list[dict],
     best_topic: dict,
+    xhs_draft: dict | None = None,
     errors: list[str] | None = None,
 ) -> str:
     """Build the HTML email body."""
@@ -248,6 +251,108 @@ def _build_html(
       {titles_html}
     </div>"""
 
+    # ── XHS Publishable Draft ──────────────────────────────────────────
+    xhs_draft_html = ""
+    if xhs_draft and xhs_draft.get("xhs_body"):
+        titles_html2 = ""
+        if xhs_draft.get("xhs_titles"):
+            titles_html2 = (
+                '<ol style="margin:8px 0; padding-left:20px">' +
+                "".join(f'<li style="font-size:14px; color:#24292f; margin-bottom:4px">{_esc(t)}</li>'
+                        for t in xhs_draft["xhs_titles"]) +
+                "</ol>"
+            )
+        cover_html = ""
+        if xhs_draft.get("cover_texts"):
+            cover_html = (
+                '<div style="font-size:13px; color:#555; margin-top:4px">' +
+                "".join(f'<span style="display:inline-block; background:#f0f0f0; padding:3px 10px; '
+                        f'border-radius:6px; margin:2px 4px 2px 0; font-size:12px">📌 {_esc(c)}</span>'
+                        for c in xhs_draft["cover_texts"]) +
+                '</div>'
+            )
+        screenshots_html = ""
+        if xhs_draft.get("screenshots"):
+            screenshots_html = (
+                '<ul style="margin:4px 0; padding-left:18px; font-size:13px; color:#555">' +
+                "".join(f"<li>{_esc(s)}</li>" for s in xhs_draft["screenshots"]) +
+                "</ul>"
+            )
+        checklist = xhs_draft.get("publish_checklist", "")
+        # Render checklist with line breaks
+        checklist_html = ""
+        if checklist:
+            lines = [l.strip() for l in checklist.replace("\n", "<br>").split("<br>") if l.strip()]
+            checklist_html = (
+                '<div style="font-size:13px; color:#444; background:#f6f8fa; padding:10px 12px; '
+                'border-radius:6px; line-height:1.8">' +
+                "<br>".join(f"{_esc(l)}" for l in lines) +
+                "</div>"
+            )
+
+        why_html2 = ""
+        if xhs_draft.get("why_notable"):
+            why_html2 = (
+                '<ul style="margin:4px 0; padding-left:18px; font-size:13px; color:#444">' +
+                "".join(f"<li>{_esc(w)}</li>" for w in xhs_draft["why_notable"]) +
+                "</ul>"
+            )
+
+        xhs_draft_html = f"""
+    <h2 style="font-size:20px; color:#e6005c; border-bottom:2px solid #e6005c; padding-bottom:8px; margin-top:32px">
+      📕 今日小红书可发布稿
+    </h2>
+
+    <div style="padding:20px; background:#fff5f7; border-radius:12px; margin-bottom:24px">
+
+      <!-- 推荐项目 -->
+      <div style="margin-bottom:16px">
+        <div style="font-size:18px; font-weight:bold; color:#24292f; margin-bottom:4px">
+          📦 推荐项目：{_esc(xhs_draft.get('project_name', ''))}
+        </div>
+        <div style="font-size:14px; color:#555">{_esc(xhs_draft.get('one_liner', ''))}</div>
+      </div>
+
+      <!-- 为什么值得关注 -->
+      <div style="margin-bottom:16px">
+        <div style="font-size:14px; font-weight:bold; color:#333; margin-bottom:4px">为什么值得关注：</div>
+        {why_html2}
+      </div>
+
+      <!-- 小红书标题 -->
+      <div style="margin-bottom:16px">
+        <div style="font-size:15px; font-weight:bold; color:#e6005c; margin-bottom:6px">📝 小红书标题（5选1）</div>
+        {titles_html2}
+      </div>
+
+      <!-- 小红书正文 -->
+      <div style="margin-bottom:20px">
+        <div style="font-size:15px; font-weight:bold; color:#e6005c; margin-bottom:8px">📄 小红书正文（可直接复制）</div>
+        <div style="font-size:14px; color:#333; line-height:1.9; white-space:pre-wrap;
+                    background:#fff; padding:16px; border-radius:8px; border:1px solid #fdd">
+{_esc(xhs_draft.get('xhs_body', ''))}</div>
+      </div>
+
+      <!-- 封面文案 -->
+      <div style="margin-bottom:16px">
+        <div style="font-size:14px; font-weight:bold; color:#333; margin-bottom:4px">🎨 封面文案</div>
+        {cover_html}
+      </div>
+
+      <!-- 推荐配图 -->
+      <div style="margin-bottom:16px">
+        <div style="font-size:14px; font-weight:bold; color:#333; margin-bottom:4px">📸 推荐配图</div>
+        {screenshots_html}
+      </div>
+
+      <!-- 发布前检查 -->
+      <div style="margin-bottom:8px">
+        <div style="font-size:14px; font-weight:bold; color:#333; margin-bottom:4px">✅ 发布前需要做什么</div>
+        {checklist_html}
+      </div>
+
+    </div>"""
+
     # ── GitHub rows ────────────────────────────────────────────────────
     gh_rows = "".join(_gh_card(p) for p in github_projects) if github_projects else (
         "<tr><td style='padding:16px; color:#999'>暂无 GitHub 数据</td></tr>"
@@ -276,6 +381,9 @@ def _build_html(
 
     <!-- Today's Best Topic — most prominent section -->
     {best_topic_html}
+
+    <!-- XHS Publishable Draft -->
+    {xhs_draft_html}
 
     <!-- GitHub AI 热门项目 -->
     <h2 style="font-size:20px; color:#24292f; border-bottom:2px solid #0969da; padding-bottom:8px">

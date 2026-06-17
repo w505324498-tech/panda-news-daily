@@ -9,8 +9,7 @@ from datetime import date, datetime, timezone
 
 from src.fetch_github import fetch_github_projects
 from src.fetch_rss import fetch_category
-from src.summarize import is_available as ai_available
-from src.summarize import analyze_github_and_pick_best, summarize_news
+from src.summarize import analyze_github_and_pick_best, generate_xhs_draft, is_available as ai_available, summarize_news
 from src.mailer import send_daily_email
 
 logging.basicConfig(
@@ -84,8 +83,24 @@ def main():
             "AI 摘要功能暂不可用，请配置 OPENAI_API_KEY 后获取智能推荐"
         )
 
-    # ── 4. Best Topic (done above, nothing extra needed) ───────────
-    logger.info("══ Step 4/5: Best topic selected")
+    # ── 4. XHS Draft ──────────────────────────────────────────────
+    logger.info("══ Step 4/5: Generating XHS publishable draft…")
+    xhs_draft: dict = {}
+    try:
+        if ai_available() and github_projects:
+            # Find the best project from best_topic
+            best_idx = best_topic.get("project_index", 0)
+            best_proj = github_projects[best_idx] if 0 <= best_idx < len(github_projects) else github_projects[0]
+            xhs_draft = generate_xhs_draft(best_proj, ai_news)
+        else:
+            xhs_draft = {
+                "project_name": "", "one_liner": "", "why_notable": [],
+                "xhs_titles": [], "xhs_body": "", "cover_texts": [],
+                "screenshots": [], "publish_checklist": "",
+            }
+    except Exception as e:
+        logger.exception("XHS draft generation crashed")
+        errors.append(f"小红书草稿生成失败: {e}")
 
     # ── 5. Send Email ──────────────────────────────────────────────
     logger.info("══ Step 5/5: Sending email…")
@@ -96,6 +111,7 @@ def main():
             ai_news=ai_news,
             world_news=world_news,
             best_topic=best_topic,
+            xhs_draft=xhs_draft,
             errors=errors if errors else None,
         )
         if ok:
