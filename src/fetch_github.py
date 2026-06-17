@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 GITHUB_API = "https://api.github.com"
 # Optional: use GITHUB_TOKEN for higher rate limit
-TOKEN = os.getenv("GITHUB_TOKEN", "")
+TOKEN = os.getenv("GITHUB_TOKEN", "").strip()
 
 SEARCH_KEYWORDS = [
     "ai-agent",

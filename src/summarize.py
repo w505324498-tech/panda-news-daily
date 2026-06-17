@@ -8,11 +8,11 @@ import os
 
 logger = logging.getLogger(__name__)
 
-API_KEY = os.getenv("OPENAI_API_KEY", "")
-BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.deepseek.com")
-MODEL = os.getenv("OPENAI_MODEL", "deepseek-chat")
+API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
+BASE_URL = os.getenv("OPENAI_BASE_URL", "").strip() or "https://api.deepseek.com"
+MODEL = os.getenv("OPENAI_MODEL", "").strip() or "deepseek-chat"
 
-REQUEST_TIMEOUT = 90
+REQUEST_TIMEOUT = 120
 
 AUDIENCE_TAGS = ["普通用户", "AI爱好者", "开发者", "办公自动化"]
 
@@ -164,8 +164,16 @@ def analyze_github_and_pick_best(
             best_topic["repo"] = projects[0]["name"] if projects else ""
             best_topic["repo_url"] = projects[0]["url"] if projects else ""
 
+    except json.JSONDecodeError as e:
+        logger.warning("GitHub analysis JSON parse failed: %s\nRaw: %.200s", e, raw)
+        for p in projects:
+            p["why_notable"] = (p.get("description") or "值得关注的开源项目")[:60]
+            p["content_scores"] = {"xhs": 0, "douyin": 0, "gzh": 0}
+            p["audience"] = []
+        best_topic["recommendation_reason"] = f"AI 返回格式异常，请检查模型配置"
     except Exception as e:
-        logger.warning("GitHub analysis failed: %s", e)
+        logger.warning("GitHub analysis API call failed [%s]: %s", type(e).__name__, e)
+        logger.debug("API config: base_url=%s model=%s key_len=%d", BASE_URL, MODEL, len(API_KEY))
         for p in projects:
             p["why_notable"] = (p.get("description") or "值得关注的开源项目")[:60]
             p["content_scores"] = {"xhs": 0, "douyin": 0, "gzh": 0}
