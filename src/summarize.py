@@ -48,6 +48,21 @@ def _chat(prompt: str, max_tokens: int = 3000) -> str:
     return resp.choices[0].message.content or ""
 
 
+_CATEGORY_LABELS = {
+    "ai_news": "AI行业",
+    "world_news": "国际",
+    "china_news": "国内",
+    "stock_news": "股市",
+}
+
+_CATEGORY_GUIDANCE = {
+    "ai_news": "聚焦技术突破、产品发布、行业趋势。用通俗比喻解释技术概念。",
+    "world_news": "聚焦地缘政治、重大事件、全球影响。突出对中国读者的关联性。",
+    "china_news": "聚焦国内政策、社会民生、经济动态。突出对普通人的生活影响。",
+    "stock_news": "聚焦市场波动原因、板块轮动、监管政策。提取关键数字（涨跌幅、点位）和驱动因素。",
+}
+
+
 def summarize_news(entries: list[dict], category: str) -> list[dict]:
     """Generate Chinese summary and 'why worth reading' for news entries."""
     if not entries or not is_available():
@@ -61,9 +76,11 @@ def summarize_news(entries: list[dict], category: str) -> list[dict]:
         for i, e in enumerate(entries)
     )
 
-    cat_label = "AI行业" if category == "ai_news" else "全球重要"
+    cat_label = _CATEGORY_LABELS.get(category, "综合")
+    guidance = _CATEGORY_GUIDANCE.get(category, "")
     prompt = (
-        f"你是一个新闻编辑。以下是从RSS抓取的{cat_label}新闻。"
+        f"你是一个新闻编辑。以下是从RSS抓取的{cat_label}新闻。\n"
+        f"写作原则：{guidance}\n\n"
         "请为每条新闻生成：\n"
         "1. 简短中文摘要（50字以内，通俗易懂）\n"
         "2. 为什么值得看（30字以内，说明对读者的价值）\n\n"

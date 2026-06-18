@@ -26,6 +26,9 @@ def send_news_email(
     date_str: str,
     ai_news: list[dict],
     world_news: list[dict],
+    china_news: list[dict] | None = None,
+    stock_news: list[dict] | None = None,
+    indices: list[dict] | None = None,
     errors: list[str] | None = None,
 ) -> bool:
     """Compose and send the daily news digest email."""
@@ -36,7 +39,15 @@ def send_news_email(
         logger.error("MAIL_TO not configured.")
         return False
 
-    html = _build_html(date_str=date_str, ai_news=ai_news, world_news=world_news, errors=errors)
+    html = _build_html(
+        date_str=date_str,
+        ai_news=ai_news,
+        world_news=world_news,
+        china_news=china_news or [],
+        stock_news=stock_news or [],
+        indices=indices or [],
+        errors=errors,
+    )
 
     # Unique Message-ID prevents Gmail from treating self-sent mail as a
     # duplicate and archiving it straight to Sent — it forces inbox delivery.
@@ -71,9 +82,12 @@ def _build_html(
     date_str: str,
     ai_news: list[dict],
     world_news: list[dict],
+    china_news: list[dict],
+    stock_news: list[dict],
+    indices: list[dict],
     errors: list[str] | None = None,
 ) -> str:
-    """Build the news-only HTML email body."""
+    """Build the multi-section news HTML email body."""
 
     def _news_card(e: dict, index: int) -> str:
         title = e.get("title", "")
@@ -96,7 +110,22 @@ def _build_html(
           </td>
         </tr>"""
 
-    # ── Errors banner ──────────────────────────────────────────────────
+    def _section(title: str, emoji: str, color: str, news: list[dict]) -> str:
+        rows = "".join(_news_card(e, i + 1) for i, e in enumerate(news)) if news else (
+            "<tr><td style='padding:16px; color:#999'>暂无数据</td></tr>"
+        )
+        return f"""
+        <h2 style="font-size:19px; color:{color}; border-bottom:2px solid {color}; padding-bottom:8px; margin-top:32px">
+          {emoji} {title}
+        </h2>
+        <table style="width:100%; border-collapse:collapse; margin-bottom:8px">
+          {rows}
+        </table>"""
+
+    # ── Index ticker bar ─────────────────────────────────────────────────
+    index_html = _index_bar(indices)
+
+    # ── Errors banner ────────────────────────────────────────────────────
     errors_html = ""
     if errors:
         errors_html = (
@@ -104,14 +133,6 @@ def _build_html(
             + "".join(f"<div style='color:#856404; font-size:13px; margin:4px 0'>⚠️ {_esc(e)}</div>" for e in errors)
             + "</div>"
         )
-
-    # ── News sections ──────────────────────────────────────────────────
-    ai_rows = "".join(_news_card(e, i + 1) for i, e in enumerate(ai_news)) if ai_news else (
-        "<tr><td style='padding:16px; color:#999'>暂无 AI 新闻数据</td></tr>"
-    )
-    world_rows = "".join(_news_card(e, i + 1) for i, e in enumerate(world_news)) if world_news else (
-        "<tr><td style='padding:16px; color:#999'>暂无全球新闻数据</td></tr>"
-    )
 
     return f"""<!DOCTYPE html>
 <html>
@@ -126,23 +147,12 @@ def _build_html(
       <p style="font-size:14px; color:#656d76; margin:0">{date_str} · AI Curation by DeepSeek</p>
     </div>
 
+    {index_html}
     {errors_html}
-
-    <!-- AI News -->
-    <h2 style="font-size:19px; color:#1a7f37; border-bottom:2px solid #1a7f37; padding-bottom:8px; margin-top:8px">
-      🧠 AI 行业新闻
-    </h2>
-    <table style="width:100%; border-collapse:collapse; margin-bottom:8px">
-      {ai_rows}
-    </table>
-
-    <!-- World News -->
-    <h2 style="font-size:19px; color:#8250df; border-bottom:2px solid #8250df; padding-bottom:8px; margin-top:32px">
-      🌍 全球重要新闻
-    </h2>
-    <table style="width:100%; border-collapse:collapse; margin-bottom:8px">
-      {world_rows}
-    </table>
+    {_section("AI 行业新闻", "🧠", "#1a7f37", ai_news)}
+    {_section("国内新闻", "🇨🇳", "#d32f2f", china_news)}
+    {_section("国际新闻", "🌍", "#8250df", world_news)}
+    {_section("股市要闻", "📈", "#e65100", stock_news)}
 
     <!-- Footer -->
     <div style="margin-top:32px; padding-top:16px; border-top:1px solid #e8e8e8;
@@ -152,6 +162,30 @@ def _build_html(
   </div>
 </body>
 </html>"""
+
+
+def _index_bar(indices: list[dict]) -> str:
+    """Render a compact index ticker bar at the top of the email."""
+    if not indices:
+        return ""
+    badges = []
+    for idx in indices:
+        name = idx["name"]
+        cur = idx["current"]
+        direction = idx["direction"]
+        change_pct = idx["change_pct"]
+        color = "#d32f2f" if direction == "↑" else "#1a7f37"
+        badges.append(
+            f'<span style="display:inline-block; padding:6px 12px; margin:3px 4px; '
+            f'background:#f6f8fa; border-radius:8px; font-size:13px; white-space:nowrap">'
+            f'<b>{name}</b> {cur:.0f} '
+            f'<span style="color:{color}">{direction}{abs(change_pct):.2f}%</span></span>'
+        )
+    return (
+        '<div style="text-align:center; padding:12px 0; margin-bottom:8px">'
+        + "".join(badges)
+        + "</div>"
+    )
 
 
 def _esc(s: str) -> str:

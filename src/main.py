@@ -1,6 +1,7 @@
 """Panda News Daily — Global & AI news digest with Chinese summarization.
 
 Orchestrates: RSS news → DeepSeek AI summarization → HTML Email delivery.
+v2: 4 categories (AI / China / World / Stock) + real-time index data.
 """
 
 import logging
@@ -20,6 +21,7 @@ if _dotenv_path.exists():
                 os.environ.setdefault(key.strip(), value.strip())
 
 from src.fetch_rss import fetch_category
+from src.fetch_stock import fetch_indices
 from src.summarize import is_available as ai_available, summarize_news
 from src.mailer import send_news_email
 
@@ -30,53 +32,75 @@ logging.basicConfig(
 )
 logger = logging.getLogger("panda-news")
 
+CATEGORIES = ["ai_news", "china_news", "world_news", "stock_news"]
+
+
+def _fetch_all() -> tuple[dict[str, list[dict]], list[str]]:
+    """Fetch all 4 RSS categories. Each failure is non-fatal."""
+    results: dict[str, list[dict]] = {}
+    errors: list[str] = []
+    for cat in CATEGORIES:
+        try:
+            results[cat] = fetch_category(cat)
+        except Exception as e:
+            logger.exception("%s fetch crashed", cat)
+            errors.append(f"{cat} 获取失败: {e}")
+            results[cat] = []
+    counts = ", ".join(f"{cat}={len(results[cat])}" for cat in CATEGORIES)
+    logger.info("RSS fetch done: %s", counts)
+    return results, errors
+
+
+def _summarize_all(news: dict[str, list[dict]]) -> tuple[dict[str, list[dict]], list[str]]:
+    """Summarize each category via DeepSeek. Each failure is non-fatal."""
+    errors: list[str] = []
+    for cat in CATEGORIES:
+        try:
+            news[cat] = summarize_news(news[cat], cat)
+        except Exception as e:
+            logger.exception("%s summarization crashed", cat)
+            errors.append(f"{cat} 摘要失败: {e}")
+    return news, errors
+
 
 def main():
     date_str = date.today().isoformat()
-    errors: list[str] = []
+    all_errors: list[str] = []
 
-    # ── 1. RSS News ──────────────────────────────────────────────────
-    logger.info("══ Step 1/3: Fetching RSS news…")
-    ai_news: list[dict] = []
-    world_news: list[dict] = []
+    # ── 1. Fetch ─────────────────────────────────────────────────────
+    logger.info("══ Step 1/4: Fetching RSS news (4 categories)…")
+    news, fetch_errs = _fetch_all()
+    all_errors.extend(fetch_errs)
+
+    # ── 2. Stock indices ─────────────────────────────────────────────
+    logger.info("══ Step 2/4: Fetching stock indices…")
+    indices: list[dict] = []
     try:
-        ai_news = fetch_category("ai_news")
+        indices = fetch_indices()
     except Exception as e:
-        logger.exception("AI news fetch crashed")
-        errors.append(f"AI 新闻获取失败: {e}")
-    try:
-        world_news = fetch_category("world_news")
-    except Exception as e:
-        logger.exception("World news fetch crashed")
-        errors.append(f"全球新闻获取失败: {e}")
+        logger.exception("Stock index fetch crashed")
+        all_errors.append(f"股市指数获取失败: {e}")
 
-    logger.info("  AI news: %d items, World news: %d items", len(ai_news), len(world_news))
-
-    # ── 2. DeepSeek Summarization ────────────────────────────────────
+    # ── 3. Summarize ─────────────────────────────────────────────────
     if ai_available():
-        logger.info("══ Step 2/3: AI summarization (DeepSeek)…")
-        try:
-            ai_news = summarize_news(ai_news, "ai_news")
-        except Exception as e:
-            logger.exception("AI news summarization crashed")
-            errors.append(f"AI 新闻摘要失败: {e}")
-        try:
-            world_news = summarize_news(world_news, "world_news")
-        except Exception as e:
-            logger.exception("World news summarization crashed")
-            errors.append(f"全球新闻摘要失败: {e}")
+        logger.info("══ Step 3/4: AI summarization (DeepSeek)…")
+        news, sum_errs = _summarize_all(news)
+        all_errors.extend(sum_errs)
     else:
-        logger.info("══ Step 2/3: AI summarization SKIPPED (DEEPSEEK_API_KEY not set)")
-        errors.append("⚠️ DEEPSEEK_API_KEY 未配置，摘要未经 AI 改写")
+        logger.info("══ Step 3/4: AI summarization SKIPPED (DEEPSEEK_API_KEY not set)")
+        all_errors.append("⚠️ DEEPSEEK_API_KEY 未配置，摘要未经 AI 改写")
 
-    # ── 3. Send Email ────────────────────────────────────────────────
-    logger.info("══ Step 3/3: Sending email…")
+    # ── 4. Send Email ────────────────────────────────────────────────
+    logger.info("══ Step 4/4: Sending email…")
     try:
         ok = send_news_email(
             date_str=date_str,
-            ai_news=ai_news,
-            world_news=world_news,
-            errors=errors if errors else None,
+            ai_news=news.get("ai_news", []),
+            world_news=news.get("world_news", []),
+            china_news=news.get("china_news", []),
+            stock_news=news.get("stock_news", []),
+            indices=indices,
+            errors=all_errors if all_errors else None,
         )
         if ok:
             logger.info("✅ Email sent successfully!")
@@ -87,10 +111,8 @@ def main():
         logger.exception("Mailer crashed")
         sys.exit(1)
 
-    logger.info(
-        "══ Done: AI_News=%d, World_News=%d, Errors=%d ══",
-        len(ai_news), len(world_news), len(errors),
-    )
+    sums = ", ".join(f"{cat}={len(news.get(cat, []))}" for cat in CATEGORIES)
+    logger.info("══ Done: %s, Indices=%d, Errors=%d ══", sums, len(indices), len(all_errors))
 
 
 if __name__ == "__main__":

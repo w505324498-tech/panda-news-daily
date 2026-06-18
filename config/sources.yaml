@@ -26,3 +26,19 @@ world_news:
     url: "https://feeds.npr.org/1004/rss.xml"
   - name: "SCMP News"
     url: "https://www.scmp.com/rss/91/feed"
+
+china_news:
+  - name: "人民网 时政"
+    url: "http://www.people.com.cn/rss/politics.xml"
+  - name: "人民网 社会"
+    url: "http://www.people.com.cn/rss/society.xml"
+  - name: "新浪新闻"
+    url: "http://rss.sina.com.cn/news/marquee/ddt.xml"
+
+stock_news:
+  - name: "人民网 财经"
+    url: "http://www.people.com.cn/rss/finance.xml"
+  - name: "MarketWatch"
+    url: "https://feeds.marketwatch.com/marketwatch/topstories"
+  - name: "WSJ Markets"
+    url: "https://feeds.a.dj.com/rss/RSSMarketsMain.xml"
