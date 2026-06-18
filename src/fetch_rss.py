@@ -2,6 +2,7 @@
 
 import logging
 import os
+import time
 
 import feedparser
 import yaml
@@ -11,7 +12,10 @@ from src.dedupe import dedupe_by_title
 logger = logging.getLogger(__name__)
 
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "..", "config", "sources.yaml")
-REQUEST_TIMEOUT = 30
+MAX_RETRIES = 2
+RETRY_DELAY = 3  # seconds between retries
+# Note: feedparser controls its own HTTP timeout; we wrap with retry for
+# transient network blips that would otherwise silently produce zero entries.
 
 
 def load_sources() -> dict:
@@ -21,27 +25,40 @@ def load_sources() -> dict:
 
 
 def fetch_feed(name: str, url: str) -> list[dict]:
-    """Fetch a single RSS/Atom feed, returning parsed entries."""
-    try:
-        feed = feedparser.parse(url, agent="Panda-Intelligence-Center/1.0")
-        if feed.bozo and not feed.entries:
-            logger.warning("RSS '%s' parse error: %s", name, feed.bozo_exception)
-            return []
+    """Fetch a single RSS/Atom feed with retries, returning parsed entries."""
+    last_error = None
+    for attempt in range(1 + MAX_RETRIES):
+        try:
+            feed = feedparser.parse(url, agent="Panda-Intelligence-Center/1.0")
+            if not feed.entries:
+                if feed.bozo:
+                    last_error = str(feed.bozo_exception)
+                    logger.warning("RSS '%s' parse error (attempt %d): %s", name, attempt + 1, last_error)
+                else:
+                    last_error = "empty feed"
+                    logger.warning("RSS '%s' returned 0 entries (attempt %d)", name, attempt + 1)
+                if attempt < MAX_RETRIES:
+                    time.sleep(RETRY_DELAY)
+                    continue
+                return []
 
-        entries = []
-        for entry in feed.entries[:10]:  # Take up to 10 per feed
-            entries.append({
-                "title": entry.get("title", "").strip(),
-                "url": entry.get("link", ""),
-                "source": name,
-                "summary": _clean_summary(entry),
-                "published": entry.get("published", "") or entry.get("updated", ""),
-            })
-        logger.info("RSS '%s': %d entries", name, len(entries))
-        return entries
-    except Exception as e:
-        logger.warning("RSS '%s' failed: %s", name, e)
-        return []
+            entries = []
+            for entry in feed.entries[:10]:  # Take up to 10 per feed
+                entries.append({
+                    "title": entry.get("title", "").strip(),
+                    "url": entry.get("link", ""),
+                    "source": name,
+                    "summary": _clean_summary(entry),
+                    "published": entry.get("published", "") or entry.get("updated", ""),
+                })
+            logger.info("RSS '%s': %d entries", name, len(entries))
+            return entries
+        except Exception as e:
+            last_error = str(e)
+            logger.warning("RSS '%s' failed (attempt %d): %s", name, attempt + 1, e)
+            if attempt < MAX_RETRIES:
+                time.sleep(RETRY_DELAY)
+    return []
 
 
 def _clean_summary(entry) -> str:

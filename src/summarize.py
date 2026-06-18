@@ -15,6 +15,17 @@ MODEL = os.getenv("DEEPSEEK_MODEL", "").strip() or "deepseek-chat"
 REQUEST_TIMEOUT = 120
 
 
+def _parse_json(raw: str) -> any:
+    """Parse JSON from LLM response, handling markdown code fences."""
+    import re
+    text = raw.strip()
+    # Strip markdown code fences (```json ... ``` or ``` ... ```)
+    m = re.search(r"```(?:json)?\s*\n?(.*?)\n?```", text, re.DOTALL)
+    if m:
+        text = m.group(1).strip()
+    return json.loads(text)
+
+
 def _client():
     """Lazy-init the OpenAI client (DeepSeek is OpenAI-compatible)."""
     from openai import OpenAI
@@ -64,7 +75,7 @@ def summarize_news(entries: list[dict], category: str) -> list[dict]:
     try:
         raw = _chat(prompt, max_tokens=1500)
         logger.info("%s summary generated", category)
-        highlights = json.loads(raw)
+        highlights = _parse_json(raw)
         for h in highlights:
             idx = h["index"] - 1
             if 0 <= idx < len(entries):

@@ -5,8 +5,10 @@ from __future__ import annotations
 import logging
 import os
 import smtplib
+import uuid
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.utils import formataddr, formatdate
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +18,7 @@ SMTP_USER = os.getenv("SMTP_USER", "")
 SMTP_PASS = os.getenv("SMTP_PASS", "")
 MAIL_TO = os.getenv("MAIL_TO", "")
 MAIL_FROM = os.getenv("MAIL_FROM", SMTP_USER)
+MAIL_FROM_NAME = os.getenv("MAIL_FROM_NAME", "🐼 Panda News Daily")
 
 
 def send_news_email(
@@ -35,10 +38,16 @@ def send_news_email(
 
     html = _build_html(date_str=date_str, ai_news=ai_news, world_news=world_news, errors=errors)
 
+    # Unique Message-ID prevents Gmail from treating self-sent mail as a
+    # duplicate and archiving it straight to Sent — it forces inbox delivery.
+    msg_id = f"<panda-news-{date_str}-{uuid.uuid4().hex[:8]}@{SMTP_HOST.split('.', 1)[-1] or 'local'}>"
+
     msg = MIMEMultipart("alternative")
     msg["Subject"] = f"📰 Panda News Daily - {date_str}"
-    msg["From"] = MAIL_FROM
+    msg["From"] = formataddr((MAIL_FROM_NAME, MAIL_FROM))
     msg["To"] = MAIL_TO
+    msg["Date"] = formatdate(localtime=True)
+    msg["Message-ID"] = msg_id
     msg.attach(MIMEText(html, "html", "utf-8"))
 
     try:
