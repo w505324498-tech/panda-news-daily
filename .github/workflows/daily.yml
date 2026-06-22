@@ -2,9 +2,10 @@ name: Panda News Daily
 
 on:
   schedule:
-    # Daily at 8:37 AM Beijing time (UTC+8) = 00:37 UTC
-    # Non-round minute avoids GitHub scheduler congestion (peak loads drop :00 jobs)
-    - cron: "37 0 * * *"
+    # Target: ~8:37 AM Beijing. GitHub scheduler adds ~4-5h delay in
+    # batch processing, so cron is set earlier to compensate.
+    # 20:37 UTC + ~4-5h delay ≈ 00:37-01:37 UTC = 8:37-9:37 AM Beijing
+    - cron: "37 20 * * *"
   workflow_dispatch: {}
 
 jobs:
