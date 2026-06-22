@@ -39,6 +39,14 @@ def send_news_email(
         logger.error("MAIL_TO not configured.")
         return False
 
+    mail_from_display = f"{MAIL_FROM[:8]}..." if len(MAIL_FROM) > 8 else MAIL_FROM
+    logger.info("Sending via %s from %s", SMTP_HOST, mail_from_display)
+        logger.error("SMTP not configured. Set SMTP_HOST, SMTP_USER, SMTP_PASS.")
+        return False
+    if not MAIL_TO:
+        logger.error("MAIL_TO not configured.")
+        return False
+
     html = _build_html(
         date_str=date_str,
         ai_news=ai_news,
