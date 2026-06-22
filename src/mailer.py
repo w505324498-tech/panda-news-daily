@@ -39,8 +39,7 @@ def send_news_email(
         logger.error("MAIL_TO not configured.")
         return False
 
-    has_alias = "+panda" in MAIL_FROM
-    logger.info("Sending via %s | MAIL_FROM has +panda: %s | len=%d", SMTP_HOST, has_alias, len(MAIL_FROM))
+    logger.info("Sending via %s", SMTP_HOST)
 
     html = _build_html(
         date_str=date_str,
