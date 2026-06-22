@@ -39,8 +39,8 @@ def send_news_email(
         logger.error("MAIL_TO not configured.")
         return False
 
-    mail_from_display = f"{MAIL_FROM[:8]}..." if len(MAIL_FROM) > 8 else MAIL_FROM
-    logger.info("Sending via %s from %s", SMTP_HOST, mail_from_display)
+    has_alias = "+panda" in MAIL_FROM
+    logger.info("Sending via %s | MAIL_FROM has +panda: %s | len=%d", SMTP_HOST, has_alias, len(MAIL_FROM))
 
     html = _build_html(
         date_str=date_str,
