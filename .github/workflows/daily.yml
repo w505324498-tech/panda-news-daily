@@ -4,7 +4,7 @@ on:
   schedule:
     # Daily at 8:37 AM Beijing time (UTC+8) = 00:37 UTC
     # Non-round minute avoids GitHub scheduler congestion (peak loads drop :00 jobs)
-    - cron: "50 2 * * *"
+    - cron: "2 3 * * *"
   workflow_dispatch: {}
 
 jobs:
