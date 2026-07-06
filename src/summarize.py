@@ -44,6 +44,9 @@ def _chat(prompt: str, max_tokens: int = 3000) -> str:
         "generationConfig": {
             "temperature": 0.3,
             "maxOutputTokens": max_tokens,
+            # Gemini 2.5 Flash is a thinking model — disable thinking so
+            # output tokens aren't consumed by internal reasoning.
+            "thinkingConfig": {"thinkingBudget": 0},
         },
     }).encode("utf-8")
 
@@ -60,12 +63,22 @@ def _chat(prompt: str, max_tokens: int = 3000) -> str:
         logger.error("Gemini HTTP %s: %s", e.code, err_body)
         raise
 
-    data = json.loads(resp.read().decode("utf-8"))
+    resp_body = resp.read().decode("utf-8")
+    data = json.loads(resp_body)
     candidates = data.get("candidates", [])
     if not candidates:
+        logger.warning("Gemini returned no candidates. Response: %s", resp_body[:300])
         return ""
-    parts = candidates[0].get("content", {}).get("parts", [])
-    return parts[0].get("text", "") if parts else ""
+    content = candidates[0].get("content", {})
+    parts = content.get("parts", [])
+    # Gemini thinking models may return multiple parts — take the text from
+    # the last part (the actual response), skipping thought/introspection parts.
+    texts = [p.get("text", "") for p in parts if p.get("text")]
+    if not texts:
+        logger.warning("Gemini returned no text parts. Parts: %s",
+                       json.dumps(parts, ensure_ascii=False)[:300])
+        return ""
+    return "".join(texts)
 
 
 _CATEGORY_LABELS = {
@@ -110,9 +123,9 @@ def summarize_news(entries: list[dict], category: str) -> list[dict]:
     )
 
     try:
-        raw = _chat(prompt, max_tokens=1500)
-        logger.info("%s summary generated", category)
+        raw = _chat(prompt, max_tokens=8192)
         highlights = _parse_json(raw)
+        logger.info("%s summary generated (%d items)", category, len(highlights))
         for h in highlights:
             idx = h["index"] - 1
             if 0 <= idx < len(entries):

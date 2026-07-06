@@ -84,7 +84,7 @@ def main():
 
     # ── 3. Summarize ─────────────────────────────────────────────────
     if ai_available():
-        logger.info("══ Step 3/4: AI summarization (DeepSeek)…")
+        logger.info("══ Step 3/4: AI summarization (Gemini)…")
         news, sum_errs = _summarize_all(news)
         all_errors.extend(sum_errs)
     else:
