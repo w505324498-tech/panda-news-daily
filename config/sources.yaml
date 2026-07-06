@@ -21,7 +21,7 @@ china_news:
   - name: "BBC China"
     url: "https://feeds.bbci.co.uk/news/world/asia/china/rss.xml"
   - name: "The Diplomat"
-    url: "https://thediplomat.com/feeds/"
+    url: "https://thediplomat.com/feed/"
   - name: "Sixth Tone"
     url: "https://www.sixthtone.com/rss"
   - name: "NYT Asia Pacific"
