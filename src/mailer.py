@@ -146,7 +146,7 @@ def _build_html(
     <!-- Header -->
     <div style="text-align:center; padding-bottom:20px; border-bottom:3px solid #8250df; margin-bottom:24px">
       <h1 style="font-size:24px; color:#24292f; margin:0 0 6px 0">📰 Panda News Daily</h1>
-      <p style="font-size:14px; color:#656d76; margin:0">{date_str} · AI Curation by DeepSeek</p>
+      <p style="font-size:14px; color:#656d76; margin:0">{date_str} · AI Curation by Gemini</p>
     </div>
 
     {index_html}
@@ -159,7 +159,7 @@ def _build_html(
     <!-- Footer -->
     <div style="margin-top:32px; padding-top:16px; border-top:1px solid #e8e8e8;
                 font-size:12px; color:#999; text-align:center">
-      🐼 Panda News Daily · Automated · Powered by DeepSeek
+      🐼 Panda News Daily · Automated · Powered by Gemini
     </div>
   </div>
 </body>

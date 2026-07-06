@@ -1,17 +1,18 @@
-"""Call DeepSeek API to generate Chinese news summaries."""
+"""Call Gemini API to generate Chinese news summaries."""
 
 from __future__ import annotations
 
 import json
 import logging
 import os
+import urllib.request
 
 logger = logging.getLogger(__name__)
 
-API_KEY = os.getenv("DEEPSEEK_API_KEY", "").strip()
-BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "").strip() or "https://api.deepseek.com"
-MODEL = os.getenv("DEEPSEEK_MODEL", "").strip() or "deepseek-chat"
+API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
+MODEL = os.getenv("GEMINI_MODEL", "").strip() or "gemini-2.5-flash"
 
+GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 REQUEST_TIMEOUT = 120
 
 
@@ -26,26 +27,34 @@ def _parse_json(raw: str) -> any:
     return json.loads(text)
 
 
-def _client():
-    """Lazy-init the OpenAI client (DeepSeek is OpenAI-compatible)."""
-    from openai import OpenAI
-    return OpenAI(api_key=API_KEY, base_url=BASE_URL, timeout=REQUEST_TIMEOUT)
-
-
 def is_available() -> bool:
     return bool(API_KEY)
 
 
 def _chat(prompt: str, max_tokens: int = 3000) -> str:
-    """Send a chat completion request and return the content."""
-    client = _client()
-    resp = client.chat.completions.create(
-        model=MODEL,
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=max_tokens,
-        temperature=0.3,
+    """Send a generateContent request to Gemini and return the text."""
+    url = f"{GEMINI_BASE}/{MODEL}:generateContent?key={API_KEY}"
+    body = json.dumps({
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "temperature": 0.3,
+            "maxOutputTokens": max_tokens,
+        },
+    }).encode("utf-8")
+
+    req = urllib.request.Request(
+        url,
+        data=body,
+        headers={"Content-Type": "application/json"},
     )
-    return resp.choices[0].message.content or ""
+
+    resp = urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT)
+    data = json.loads(resp.read().decode("utf-8"))
+    candidates = data.get("candidates", [])
+    if not candidates:
+        return ""
+    parts = candidates[0].get("content", {}).get("parts", [])
+    return parts[0].get("text", "") if parts else ""
 
 
 _CATEGORY_LABELS = {

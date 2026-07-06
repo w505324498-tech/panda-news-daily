@@ -88,8 +88,8 @@ def main():
         news, sum_errs = _summarize_all(news)
         all_errors.extend(sum_errs)
     else:
-        logger.info("══ Step 3/4: AI summarization SKIPPED (DEEPSEEK_API_KEY not set)")
-        all_errors.append("⚠️ DEEPSEEK_API_KEY 未配置，摘要未经 AI 改写")
+        logger.info("══ Step 3/4: AI summarization SKIPPED (GEMINI_API_KEY not set)")
+        all_errors.append("⚠️ GEMINI_API_KEY 未配置，摘要未经 AI 改写")
 
     # ── 4. Send Email ────────────────────────────────────────────────
     logger.info("══ Step 4/4: Sending email…")
