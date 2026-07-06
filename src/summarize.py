@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import urllib.request
+import urllib.error
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,11 @@ def _parse_json(raw: str) -> any:
 
 
 def is_available() -> bool:
-    return bool(API_KEY)
+    ok = bool(API_KEY)
+    if ok:
+        logger.info("Gemini API key present (%s…%s, model=%s)",
+                    API_KEY[:4], API_KEY[-4:], MODEL)
+    return ok
 
 
 def _chat(prompt: str, max_tokens: int = 3000) -> str:
@@ -48,7 +53,13 @@ def _chat(prompt: str, max_tokens: int = 3000) -> str:
         headers={"Content-Type": "application/json"},
     )
 
-    resp = urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT)
+    try:
+        resp = urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT)
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode("utf-8", errors="replace")[:500]
+        logger.error("Gemini HTTP %s: %s", e.code, err_body)
+        raise
+
     data = json.loads(resp.read().decode("utf-8"))
     candidates = data.get("candidates", [])
     if not candidates:
