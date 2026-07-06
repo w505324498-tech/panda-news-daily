@@ -152,9 +152,9 @@ def _build_html(
     {index_html}
     {errors_html}
     {_section("AI 行业新闻", "🧠", "#1a7f37", ai_news)}
-    {_section("国内新闻", "🇨🇳", "#d32f2f", china_news)}
+    {_section("中国观察", "🔭", "#d32f2f", china_news)}
     {_section("国际新闻", "🌍", "#8250df", world_news)}
-    {_section("股市要闻", "📈", "#e65100", stock_news)}
+    {_section("全球市场", "📈", "#e65100", stock_news)}
 
     <!-- Footer -->
     <div style="margin-top:32px; padding-top:16px; border-top:1px solid #e8e8e8;

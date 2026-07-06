@@ -13,6 +13,20 @@ ai_news:
   - name: "MIT Tech Review AI"
     url: "https://www.technologyreview.com/topic/artificial-intelligence/feed/"
 
+# China news from international sources — avoids state-media echo chamber,
+# surfaces analytical, policy, and societal coverage from outside perspectives.
+china_news:
+  - name: "SCMP News"
+    url: "https://www.scmp.com/rss/4/feed"
+  - name: "BBC China"
+    url: "https://feeds.bbci.co.uk/news/world/asia/china/rss.xml"
+  - name: "The Diplomat"
+    url: "https://thediplomat.com/feeds/"
+  - name: "Sixth Tone"
+    url: "https://www.sixthtone.com/rss"
+  - name: "NYT Asia Pacific"
+    url: "https://rss.nytimes.com/services/xml/rss/nyt/AsiaPacific.xml"
+
 world_news:
   - name: "BBC World"
     url: "https://feeds.bbci.co.uk/news/world/rss.xml"
@@ -24,21 +38,16 @@ world_news:
     url: "https://www.theguardian.com/world/rss"
   - name: "NPR World"
     url: "https://feeds.npr.org/1004/rss.xml"
-  - name: "SCMP News"
-    url: "https://www.scmp.com/rss/91/feed"
 
-china_news:
-  - name: "人民网 时政"
-    url: "http://www.people.com.cn/rss/politics.xml"
-  - name: "人民网 社会"
-    url: "http://www.people.com.cn/rss/society.xml"
-  - name: "新浪新闻"
-    url: "http://rss.sina.com.cn/news/marquee/ddt.xml"
-
+# Global market news — coverage of US, Asia, and European markets.
+# Chinese domestic financial mouthpieces removed; replaced with
+# international outlets that cover China/Asia markets independently.
 stock_news:
-  - name: "人民网 财经"
-    url: "http://www.people.com.cn/rss/finance.xml"
   - name: "MarketWatch"
     url: "https://feeds.marketwatch.com/marketwatch/topstories"
   - name: "WSJ Markets"
     url: "https://feeds.a.dj.com/rss/RSSMarketsMain.xml"
+  - name: "CNBC Top News"
+    url: "https://www.cnbc.com/id/100003114/device/rss/rss.html"
+  - name: "Nikkei Asia"
+    url: "https://asia.nikkei.com/rss/feed/nar"

@@ -1,7 +1,8 @@
 """Panda News Daily — Global & AI news digest with Chinese summarization.
 
 Orchestrates: RSS news → DeepSeek AI summarization → HTML Email delivery.
-v2: 4 categories (AI / China / World / Stock) + real-time index data.
+v3: 4 categories (AI / China-Watch / World / Global-Markets) + real-time index data.
+China news sourced from international media (SCMP, BBC, The Diplomat, etc.) to avoid state-media repetition.
 """
 
 import logging
